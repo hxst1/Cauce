@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { t } from './idioma'
 import type { Archivo, Bloque, Commit, DetalleCommit, Diff, Estado, InfoRepo, Letra, Linea, Operacion, Rama, Ref, Resumen } from '@shared/tipos'
 
 // Contraseñas de SSH y de HTTPS en un diálogo gráfico (git corre sin terminal).
@@ -42,7 +43,7 @@ export function git(repo: string, args: string[], o: Opciones = {}): Promise<str
     p.on('close', (codigo) => {
       if (codigo === 0 || (codigo !== null && o.codigosValidos?.includes(codigo))) return resolver(Buffer.concat(salida).toString('utf8'))
       const msg = Buffer.concat(errores).toString('utf8').trim() || Buffer.concat(salida).toString('utf8').trim()
-      rechazar(new ErrorGit(limpiarMensaje(msg) || `git ${args[0]} ha fallado (${codigo ?? 'cortado'})`))
+      rechazar(new ErrorGit(limpiarMensaje(msg) || t.git.fallo(args[0], String(codigo ?? 'killed'))))
     })
     if (o.entrada !== undefined) p.stdin.end(o.entrada)
     else p.stdin.end()
@@ -230,7 +231,7 @@ export async function bloque(repo: string, a: Archivo, preparado: boolean, cabec
   const crudo = await diffCrudo(repo, a, preparado)
   // El diff puede haber cambiado desde que se pintó: se busca el bloque por su cabecera.
   const b = crudo.bloques[indice]?.cabecera === cabecera ? crudo.bloques[indice] : crudo.bloques.find((x) => x.cabecera === cabecera)
-  if (!b) throw new ErrorGit('El archivo ha cambiado: vuelve a intentarlo')
+  if (!b) throw new ErrorGit(t.git.archivoCambiado)
   const parche = `${crudo.cabecera}\n${b.texto}\n`
   const args = accion === 'preparar' ? ['--cached'] : accion === 'quitar' ? ['--cached', '--reverse'] : ['--reverse']
   await git(repo, ['apply', ...args, '--whitespace=nowarn', '-'], { entrada: parche })
@@ -294,7 +295,7 @@ const FIN = '\x1e'
 
 export async function historial(repo: string, o: { todas: boolean; cantidad: number; saltar: number; buscar?: string }): Promise<Commit[]> {
   const rem = await nombresRemotos(repo, o.saltar === 0)
-  const args = ['log', '--date-order', `-n${o.cantidad}`, `--skip=${o.saltar}`, `--format=%H${SEP}%P${SEP}%an${SEP}%ae${SEP}%at${SEP}%D${SEP}%s${FIN}`]
+  const args = ['log', '--date-order', `-n${o.cantidad}`, `--skip=${o.saltar}`, `--format=%H${SEP}%P${SEP}%aN${SEP}%aE${SEP}%at${SEP}%D${SEP}%s${FIN}`]
   if (o.buscar?.trim()) args.push('-i', '-F', `--grep=${o.buscar.trim()}`, `--author=${o.buscar.trim()}`)
   args.push(...(o.todas ? ['--branches', '--remotes', '--tags', 'HEAD'] : ['HEAD']), '--')
   const salida = await git(repo, args)
@@ -333,7 +334,7 @@ async function archivosDe(repo: string, hash: string, padre: string | undefined)
 }
 
 export async function detalle(repo: string, hash: string): Promise<DetalleCommit> {
-  const s = await git(repo, ['show', '-s', `--format=%H${SEP}%P${SEP}%an${SEP}%ae${SEP}%at${SEP}%cn${SEP}%ct${SEP}%B`, hash])
+  const s = await git(repo, ['show', '-s', `--format=%H${SEP}%P${SEP}%aN${SEP}%aE${SEP}%at${SEP}%cN${SEP}%ct${SEP}%B`, hash])
   const [h, padres, autor, email, fecha, committer, fechaCommit, ...mensaje] = s.split(SEP)
   const listaPadres = padres ? padres.split(' ') : []
   return {
@@ -394,7 +395,7 @@ export async function cambiarRama(repo: string, nombre: string, remota: boolean)
 
 export async function crearRama(repo: string, nombre: string, desde: string | null, cambiar: boolean) {
   await git(repo, ['check-ref-format', '--branch', nombre]).catch(() => {
-    throw new ErrorGit(`«${nombre}» no vale como nombre de rama`)
+    throw new ErrorGit(t.git.nombreRama(nombre))
   })
   return cambiar ? git(repo, ['switch', '-c', nombre, ...(desde ? [desde] : [])]) : git(repo, ['branch', nombre, ...(desde ? [desde] : [])])
 }
@@ -426,6 +427,6 @@ export async function subir(repo: string, upstream: string | null) {
   // Rama nueva: se publica en origin (o en el único remoto que haya) y se queda siguiéndolo.
   const rem = [...(await nombresRemotos(repo, true))]
   const destino = rem.includes('origin') ? 'origin' : rem[0]
-  if (!destino) throw new ErrorGit('Este repositorio no tiene ningún remoto al que subir')
+  if (!destino) throw new ErrorGit(t.git.sinRemoto)
   return git(repo, ['push', '-u', destino, 'HEAD'])
 }

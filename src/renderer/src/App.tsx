@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowSquareOut, Copy, FolderOpen, GitBranch, GitMerge, Code, TerminalWindow, Trash, Warning } from '@phosphor-icons/react'
 import type { Commit, Estado, Rama, Repo, Resumen } from '@shared/tipos'
 import { api, mensajeError } from '@/api'
+import { t } from '@/i18n'
 import { Barra, Marca, type Operacion, type Vista } from '@/components/Barra'
 import { Paleta } from '@/components/Paleta'
 import { Cambios } from '@/components/Cambios'
@@ -9,7 +10,7 @@ import { Historial } from '@/components/Historial'
 import { DialogoConfirmar, DialogoRama, MenuContextual, type Confirmacion, type MenuAbierto } from '@/components/Flotantes'
 
 const CADA = 3000 // sondeo del repo abierto mientras la ventana tiene el foco
-const NOMBRE_OP = { merge: 'Fusión', rebase: 'Rebase', 'cherry-pick': 'Cherry-pick', revert: 'Revert' } as const
+const NOMBRE_OP = t.operaciones
 
 const resumenDe = (e: Estado): Resumen => ({
   rama: e.info.rama,
@@ -177,13 +178,13 @@ export function App() {
     try {
       if (o === 'traer') {
         await api.traer(activo)
-        avisar('Remotos al día')
+        avisar(t.avisos.remotosAlDia)
       } else if (o === 'bajar') {
         const s = await api.bajar(activo)
-        avisar(/up to date/i.test(s) ? 'Ya estaba al día' : 'Cambios bajados')
+        avisar(/up to date/i.test(s) ? t.avisos.yaAlDia : t.avisos.bajados)
       } else {
         await api.subir(activo, estado.info.upstream)
-        avisar(estado.info.upstream ? `Subido a ${estado.info.upstream}` : `Rama ${estado.info.rama} publicada`)
+        avisar(estado.info.upstream ? t.avisos.subido(estado.info.upstream) : t.avisos.publicada(estado.info.rama ?? 'HEAD'))
       }
     } catch (e) {
       avisar(mensajeError(e), true)
@@ -195,25 +196,26 @@ export function App() {
 
   const cambiarRama = (r: Rama) => {
     const destino = r.tipo === 'remota' ? r.nombre.split('/').slice(1).join('/') : r.nombre
-    hacer((repo) => api.cambiarRama(repo, r.nombre, r.tipo === 'remota'), `Ahora en ${destino}`)
+    hacer((repo) => api.cambiarRama(repo, r.nombre, r.tipo === 'remota'), t.avisos.ahoraEn(destino))
   }
 
   const borrarRama = (r: Rama, forzar = false) =>
     hacer(async (repo) => {
       try {
         await api.borrarRama(repo, r.nombre, forzar)
-        avisar(`Rama ${r.nombre} borrada`)
+        avisar(t.avisos.borrada(r.nombre))
       } catch (e) {
         // Sin fusionar: se pregunta otra vez, avisando de que se pierden commits.
         if (!forzar && /not fully merged/i.test(mensajeError(e))) {
           setConfirmar({
-            titulo: 'La rama no está fusionada',
+            titulo: t.dialogos.noFusionada,
             texto: (
               <>
-                <b>{r.nombre}</b> tiene commits que no están en ninguna otra rama. Si la borras, se perderán (salvo que alguien los tenga en otro sitio).
+                <b>{r.nombre}</b>
+                {t.dialogos.noFusionadaTexto}
               </>
             ),
-            boton: 'Borrar igualmente',
+            boton: t.dialogos.borrarIgual,
             peligro: true,
             accion: () => borrarRama(r, true),
           })
@@ -229,30 +231,32 @@ export function App() {
       x,
       y,
       elementos: [
-        { texto: 'Cambiar a esta rama', icono: <GitBranch size={15} />, accion: () => cambiarRama(r), deshabilitado: r.actual },
+        { texto: t.menus.cambiarRama, icono: <GitBranch size={15} />, accion: () => cambiarRama(r), deshabilitado: r.actual },
         {
-          texto: `Fusionar en ${actual ?? 'HEAD'}`,
+          texto: t.menus.fusionarEn(actual ?? 'HEAD'),
           icono: <GitMerge size={15} />,
           deshabilitado: r.actual || !actual,
-          accion: () => hacer((repo) => api.fusionar(repo, r.nombre), `${r.nombre} fusionada en ${actual}`),
+          accion: () => hacer((repo) => api.fusionar(repo, r.nombre), t.avisos.fusionada(r.nombre, actual ?? 'HEAD')),
         },
-        { texto: 'Nueva rama desde aquí…', icono: <GitBranch size={15} />, accion: () => setNuevaRama({ ref: r.nombre, texto: r.nombre }) },
-        { texto: 'Copiar el nombre', icono: <Copy size={15} />, accion: () => api.copiar(r.nombre) },
+        { texto: t.menus.nuevaDesdeAqui, icono: <GitBranch size={15} />, accion: () => setNuevaRama({ ref: r.nombre, texto: r.nombre }) },
+        { texto: t.menus.copiarNombre, icono: <Copy size={15} />, accion: () => api.copiar(r.nombre) },
         'separador',
         {
-          texto: 'Borrar la rama…',
+          texto: t.menus.borrarRama,
           icono: <Trash size={15} />,
           peligro: true,
           deshabilitado: r.actual,
           accion: () =>
             setConfirmar({
-              titulo: 'Borrar rama',
+              titulo: t.dialogos.borrarRama,
               texto: (
                 <>
-                  ¿Borrar la rama local <b>{r.nombre}</b>? La remota, si existe, no se toca.
+                  {t.dialogos.borrarRamaAntes}
+                  <b>{r.nombre}</b>
+                  {t.dialogos.borrarRamaDespues}
                 </>
               ),
-              boton: 'Borrar',
+              boton: t.dialogos.borrar,
               peligro: true,
               accion: () => borrarRama(r),
             }),
@@ -266,10 +270,10 @@ export function App() {
       x,
       y,
       elementos: [
-        { texto: 'Copiar el hash', icono: <Copy size={15} />, accion: () => (api.copiar(c.hash), avisar('Hash copiado')) },
-        { texto: 'Copiar el asunto', icono: <Copy size={15} />, accion: () => api.copiar(c.asunto) },
-        { texto: 'Nueva rama desde este commit…', icono: <GitBranch size={15} />, accion: () => setNuevaRama({ ref: c.hash, texto: `${c.hash.slice(0, 7)} · ${c.asunto}` }) },
-        ...(web ? [{ texto: 'Ver en la web', icono: <ArrowSquareOut size={15} />, accion: () => api.abrirEnlace(`${web}/commit/${c.hash}`) }] : []),
+        { texto: t.menus.copiarHash, icono: <Copy size={15} />, accion: () => (api.copiar(c.hash), avisar(t.avisos.hashCopiado)) },
+        { texto: t.menus.copiarAsunto, icono: <Copy size={15} />, accion: () => api.copiar(c.asunto) },
+        { texto: t.menus.nuevaDesdeCommit, icono: <GitBranch size={15} />, accion: () => setNuevaRama({ ref: c.hash, texto: `${c.hash.slice(0, 7)} · ${c.asunto}` }) },
+        ...(web ? [{ texto: t.menus.verWeb, icono: <ArrowSquareOut size={15} />, accion: () => api.abrirEnlace(`${web}/commit/${c.hash}`) }] : []),
       ],
     })
 
@@ -278,10 +282,10 @@ export function App() {
       x,
       y,
       elementos: [
-        { texto: 'Abrir en una terminal', icono: <TerminalWindow size={15} />, accion: () => api.abrirEn(r.ruta, 'terminal') },
-        { texto: 'Abrir en Zed', icono: <Code size={15} />, accion: () => api.abrirEn(r.ruta, 'editor') },
-        { texto: 'Abrir la carpeta', icono: <FolderOpen size={15} />, accion: () => api.abrirEn(r.ruta, 'carpeta') },
-        { texto: 'Copiar la ruta', icono: <Copy size={15} />, accion: () => api.copiar(r.ruta) },
+        { texto: t.menus.abrirTerminal, icono: <TerminalWindow size={15} />, accion: () => api.abrirEn(r.ruta, 'terminal') },
+        { texto: t.menus.abrirZed, icono: <Code size={15} />, accion: () => api.abrirEn(r.ruta, 'editor') },
+        { texto: t.menus.abrirCarpeta, icono: <FolderOpen size={15} />, accion: () => api.abrirEn(r.ruta, 'carpeta') },
+        { texto: t.menus.copiarRuta, icono: <Copy size={15} />, accion: () => api.copiar(r.ruta) },
       ],
     })
 
@@ -309,9 +313,9 @@ export function App() {
           <div className="bienvenida">
             <Marca tamano={64} />
             <h1>Cauce</h1>
-            <p>No hay repositorios en ~/dev. Añade uno para empezar.</p>
+            <p>{t.bienvenida.sinRepos}</p>
             <button className="boton destacado" onClick={anadir}>
-              Añadir repositorio
+              {t.bienvenida.anadir}
             </button>
           </div>
         ) : error && !estado ? (
@@ -348,26 +352,26 @@ export function App() {
               <div className="banda">
                 <Warning size={15} />
                 <span>
-                  <b>{NOMBRE_OP[info.operacion]} en curso.</b>{' '}
+                  <b>{t.banda.enCurso(NOMBRE_OP[info.operacion])}</b>{' '}
                   {estado.conflictos.length
-                    ? `Quedan ${estado.conflictos.length} ${estado.conflictos.length === 1 ? 'archivo' : 'archivos'} en conflicto.`
+                    ? t.banda.quedan(estado.conflictos.length)
                     : info.operacion === 'merge'
-                      ? 'Sin conflictos: haz commit para terminar.'
-                      : `Sigue en la terminal con git ${info.operacion} --continue.`}
+                      ? t.banda.sinConflictos
+                      : t.banda.seguir(info.operacion)}
                 </span>
                 <button
                   className="boton-chico"
                   onClick={() =>
                     setConfirmar({
-                      titulo: `Cancelar ${NOMBRE_OP[info.operacion!].toLowerCase()}`,
-                      texto: 'El repositorio vuelve a como estaba antes de empezar. Lo que hayas resuelto se pierde.',
-                      boton: 'Cancelar la operación',
+                      titulo: t.banda.cancelar(NOMBRE_OP[info.operacion!].toLowerCase()),
+                      texto: t.dialogos.cancelarOpTexto,
+                      boton: t.dialogos.cancelarOpBoton,
                       peligro: true,
-                      accion: () => hacer((r) => api.abortar(r, info.operacion!), 'Operación cancelada'),
+                      accion: () => hacer((r) => api.abortar(r, info.operacion!), t.avisos.cancelada),
                     })
                   }
                 >
-                  Cancelar {NOMBRE_OP[info.operacion].toLowerCase()}
+                  {t.banda.cancelar(NOMBRE_OP[info.operacion].toLowerCase())}
                 </button>
               </div>
             )}
@@ -414,7 +418,7 @@ export function App() {
           onCrear={(nombre, cambiar) => {
             const desde = nuevaRama.ref
             setNuevaRama(null)
-            hacer((r) => api.crearRama(r, nombre, desde, cambiar), cambiar ? `Ahora en ${nombre}` : `Rama ${nombre} creada`)
+            hacer((r) => api.crearRama(r, nombre, desde, cambiar), cambiar ? t.avisos.ahoraEn(nombre) : t.avisos.creada(nombre))
           }}
         />
       )}

@@ -5,6 +5,7 @@ import type { Archivo, Commit, DetalleCommit, Diff, InfoRepo, Ref } from '@share
 import { api, mensajeError } from '@/api'
 import { calcularGrafo, colorCarril, type FilaGrafo } from '@/grafo'
 import { fechaLarga, fechaRelativa, iniciales, partesRuta } from '@/formato'
+import { t } from '@/i18n'
 import { Letra } from '@/components/Cambios'
 import { VistaDiff } from '@/components/VistaDiff'
 
@@ -98,7 +99,7 @@ export function Historial({
       {commits.length === 0 ? (
         <div className="panel-lista vacio">
           <GitCommit size={38} weight="light" />
-          <span>{info.hash === null ? 'Este repositorio aún no tiene commits' : buscando ? 'Ningún commit coincide' : 'Cargando…'}</span>
+          <span>{info.hash === null ? t.historial.sinCommits : buscando ? t.historial.ninguno : t.historial.cargando}</span>
         </div>
       ) : (
         <div className="panel-lista historial" tabIndex={0} onKeyDown={teclas}>
@@ -124,7 +125,7 @@ export function Historial({
         ) : (
           <div className="vacio">
             <GitCommit size={38} weight="light" />
-            <span>Elige un commit</span>
+            <span>{t.historial.eligeCommit}</span>
           </div>
         )}
       </div>
@@ -155,7 +156,7 @@ const Grafo = memo(function Grafo({ fila, ancho, head }: { fila: FilaGrafo; anch
 
 export function Pildora({ r }: { r: Ref }) {
   return (
-    <span className={`pildora p-${r.tipo}`} title={r.tipo === 'remota' ? `Rama remota ${r.nombre}` : r.tipo === 'etiqueta' ? `Etiqueta ${r.nombre}` : `Rama ${r.nombre}`}>
+    <span className={`pildora p-${r.tipo}`} title={r.tipo === 'remota' ? t.historial.ramaRemota(r.nombre) : r.tipo === 'etiqueta' ? t.historial.etiqueta(r.nombre) : t.historial.rama(r.nombre)}>
       {r.tipo === 'etiqueta' && <Tag size={10} weight="bold" />}
       {r.nombre}
     </span>
@@ -270,10 +271,10 @@ function Detalle({
             <span>{fechaLarga(d.fecha)}</span>
             <button
               className="hash"
-              title="Copiar el hash entero"
+              title={t.historial.copiarHash}
               onClick={() => {
                 api.copiar(d.hash)
-                avisar('Hash copiado')
+                avisar(t.avisos.hashCopiado)
               }}
             >
               <Copy size={11} /> {d.hash.slice(0, 10)}
@@ -292,12 +293,12 @@ function Detalle({
         <div className="detalle-meta">
           {d.padres.length > 1 && (
             <span>
-              <GitMerge size={13} /> Fusión de
+              <GitMerge size={13} /> {t.historial.fusionDe}
             </span>
           )}
           {d.padres.length > 0 && (
             <span>
-              {d.padres.length === 1 ? 'Padre ' : ''}
+              {d.padres.length === 1 ? `${t.historial.padre} ` : ''}
               {d.padres.map((p) => (
                 <button key={p} className="enlace-hash" onClick={() => onIrA(p)}>
                   {p.slice(0, 7)}
@@ -305,15 +306,15 @@ function Detalle({
               ))}
             </span>
           )}
-          {d.committer !== d.autor && <span>Commit de {d.committer}</span>}
+          {d.committer !== d.autor && <span>{t.historial.commitDe(d.committer)}</span>}
         </div>
       </div>
 
       <div className="tarjeta archivos-commit">
         <div className="archivos-cabecera">
           <span>
-            {d.archivos.length} {d.archivos.length === 1 ? 'archivo' : 'archivos'}
-            {d.padres.length > 1 ? ' (contra el primer padre)' : ''}
+            {t.historial.archivos(d.archivos.length)}
+            {d.padres.length > 1 ? t.historial.contraPrimerPadre : ''}
           </span>
           <span className="stats">
             <span className="stat-mas">+{mas}</span> <span className="stat-menos">−{menos}</span>
@@ -332,7 +333,7 @@ function Detalle({
                     <span className="stat-mas">+{a.mas}</span> <span className="stat-menos">−{a.menos}</span>
                   </>
                 ) : (
-                  <span className="stat-bin">binario</span>
+                  <span className="stat-bin">{t.historial.binario}</span>
                 )}
               </span>
             </div>

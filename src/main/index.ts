@@ -6,6 +6,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import type { Archivo, Operacion } from '@shared/tipos'
 import * as g from './git'
 import { cambiarPreferencias, iniciarPreferencias, preferencias, repos } from './repos'
+import { IDIOMA, t } from './idioma'
 
 enableCompileCache?.()
 
@@ -13,6 +14,7 @@ enableCompileCache?.()
 process.env.CHROME_DESKTOP = 'cauce.desktop'
 app.setName('cauce')
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+app.commandLine.appendSwitch('lang', IDIOMA.locale)
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -67,11 +69,11 @@ const API = {
     cambiarPreferencias({ ultimo, recientes: ultimo ? [ultimo, ...preferencias().recientes.filter((r) => r !== ultimo)].slice(0, 8) : preferencias().recientes }),
   anadirRepo: async () => {
     const win = BrowserWindow.getFocusedWindow() ?? ventana()
-    const r = await dialog.showOpenDialog(win!, { title: 'Añadir un repositorio', properties: ['openDirectory'] })
+    const r = await dialog.showOpenDialog(win!, { title: t.principal.anadirTitulo, properties: ['openDirectory'] })
     const dir = r.filePaths[0]
     if (r.canceled || !dir) return null
     const raiz = (await g.git(dir, ['rev-parse', '--show-toplevel']).catch(() => '')).trim()
-    if (!raiz) throw new Error('Esa carpeta no es un repositorio de git')
+    if (!raiz) throw new Error(t.principal.noEsRepo)
     if (!preferencias().extras.includes(raiz)) cambiarPreferencias({ extras: [...preferencias().extras, raiz] })
     return raiz
   },
@@ -100,7 +102,7 @@ const API = {
     const conSeguimiento = archivos.filter((a) => a.letra !== '?')
     for (const a of nuevos)
       await shell.trashItem(join(repo, a.ruta)).catch(() => {
-        throw new Error(`No se ha podido mandar ${a.ruta} a la papelera (¿está en un disco sin papelera?)`)
+        throw new Error(t.principal.papelera(a.ruta))
       })
     if (conSeguimiento.length) await g.descartar(repo, conSeguimiento.map((a) => a.ruta))
   },
@@ -146,6 +148,11 @@ const API = {
 }
 export type ApiPrincipal = typeof API
 
+// El preload pide el idioma de forma síncrona: la interfaz sale ya en su idioma.
+ipcMain.on('cauce:idioma', (e) => {
+  e.returnValue = IDIOMA
+})
+
 ipcMain.handle('cauce', async (_e, metodo: keyof typeof API, ...args: unknown[]) => {
   const fn = API[metodo] as ((...a: unknown[]) => unknown) | undefined
   if (!fn) throw new Error(`Método desconocido: ${String(metodo)}`)
@@ -173,6 +180,8 @@ function crearVentana(): BrowserWindow {
     },
   })
   win.once('ready-to-show', () => win.show())
+  // Sin zoom heredado: Chromium recuerda el de Ctrl+rueda o Ctrl+- entre sesiones y la interfaz se ve diminuta.
+  win.webContents.on('did-finish-load', () => win.webContents.setZoomFactor(1))
   win.on('focus', () => win.webContents.send('cauce:foco'))
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url)

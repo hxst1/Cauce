@@ -4,6 +4,7 @@ import {
 } from '@phosphor-icons/react'
 import type { InfoRepo, Rama } from '@shared/tipos'
 import { api } from '@/api'
+import { t } from '@/i18n'
 
 export type Vista = 'cambios' | 'historial'
 export type Operacion = 'traer' | 'bajar' | 'subir'
@@ -57,25 +58,25 @@ export function Barra({
 }) {
   const sync = !info.rama
     ? info.hash
-      ? 'HEAD separada'
-      : 'sin commits'
+      ? t.barra.headSeparada
+      : t.barra.sinCommits
     : !info.upstream
-      ? 'sin publicar'
+      ? t.barra.sinPublicar
       : info.delante || info.detras
         ? [info.delante && `↑${info.delante}`, info.detras && `↓${info.detras}`].filter(Boolean).join(' ')
-        : 'al día'
+        : t.barra.alDia
 
   return (
     <header className="barra">
       <div className="barra-izq">
         <Marca />
-        <button className="miga" onClick={onPaleta} title="Cambiar de repositorio (Ctrl+P)">
+        <button className="miga" onClick={onPaleta} title={t.barra.cambiarRepo}>
           <span className="miga-repo">{nombre}</span>
           <CaretDown size={10} weight="bold" className="miga-caret" />
         </button>
         <span className="miga-sep">/</span>
         <div className="miga-rama-caja">
-          <button className="miga rama" onClick={() => onSelector(!selectorAbierto)} title="Cambiar de rama (Ctrl+B)">
+          <button className="miga rama" onClick={() => onSelector(!selectorAbierto)} title={t.barra.cambiarRama}>
             <GitBranch size={14} />
             <span>{info.rama ?? info.hash?.slice(0, 7) ?? 'main'}</span>
             <CaretDown size={10} weight="bold" className="miga-caret" />
@@ -99,18 +100,18 @@ export function Barra({
             />
           )}
         </div>
-        <span className={`sync${info.delante || info.detras ? ' pendiente' : ''}`} title={info.upstream ? `Siguiendo a ${info.upstream}` : undefined}>
+        <span className={`sync${info.delante || info.detras ? ' pendiente' : ''}`} title={info.upstream ? t.barra.siguiendo(info.upstream) : undefined}>
           {sync}
         </span>
       </div>
 
       <nav className="pestanas">
         <button className={vista === 'cambios' ? 'activa' : ''} onClick={() => onVista('cambios')} title="Ctrl+1">
-          Cambios
+          {t.barra.cambios}
           {cambios > 0 && <span className="pestana-n">{cambios}</span>}
         </button>
         <button className={vista === 'historial' ? 'activa' : ''} onClick={() => onVista('historial')} title="Ctrl+2">
-          Historial
+          {t.barra.historial}
         </button>
       </nav>
 
@@ -119,25 +120,25 @@ export function Barra({
           <>
             <div className="buscador">
               <MagnifyingGlass size={13} className="buscador-lupa" />
-              <input placeholder="Buscar commits" value={buscar} onChange={(e) => onBuscar(e.target.value)} spellCheck={false} />
+              <input placeholder={t.barra.buscarCommits} value={buscar} onChange={(e) => onBuscar(e.target.value)} spellCheck={false} />
               {buscar && (
-                <button className="buscador-cerrar" onClick={() => onBuscar('')} aria-label="Borrar">
+                <button className="buscador-cerrar" onClick={() => onBuscar('')} aria-label={t.comun.borrar}>
                   <X size={9} weight="bold" />
                 </button>
               )}
             </div>
-            <button className={`accion${todas ? ' activa' : ''}`} title={todas ? 'Viendo todas las ramas' : 'Viendo solo la rama actual'} onClick={() => onTodas(!todas)}>
+            <button className={`accion${todas ? ' activa' : ''}`} title={todas ? t.barra.todas : t.barra.soloActual} onClick={() => onTodas(!todas)}>
               <GitFork size={17} />
             </button>
             <span className="barra-sep" />
           </>
         )}
-        <button className={`accion${ocupado === 'traer' ? ' girando' : ''}`} title="Traer (fetch de todos los remotos)" disabled={!!ocupado} onClick={() => onOperacion('traer')}>
+        <button className={`accion${ocupado === 'traer' ? ' girando' : ''}`} title={t.barra.traer} disabled={!!ocupado} onClick={() => onOperacion('traer')}>
           <ArrowsClockwise size={17} />
         </button>
         <button
           className={`accion${ocupado === 'bajar' ? ' latiendo' : ''}`}
-          title={info.upstream ? `Bajar (pull de ${info.upstream})` : 'La rama no sigue a ninguna remota'}
+          title={info.upstream ? t.barra.bajar(info.upstream) : t.barra.sinUpstream}
           disabled={!!ocupado || !info.upstream}
           onClick={() => onOperacion('bajar')}
         >
@@ -146,7 +147,7 @@ export function Barra({
         </button>
         <button
           className={`accion${ocupado === 'subir' ? ' latiendo' : ''}`}
-          title={info.upstream ? `Subir (push a ${info.upstream})` : 'Publicar la rama'}
+          title={info.upstream ? t.barra.subir(info.upstream) : t.barra.publicar}
           disabled={!!ocupado || !info.rama}
           onClick={() => onOperacion('subir')}
         >
@@ -154,17 +155,17 @@ export function Barra({
           {(info.delante > 0 || (!info.upstream && info.hash)) && <span className="accion-n">{info.upstream ? info.delante : '+'}</span>}
         </button>
         <span className="barra-sep" />
-        <button className="accion" title="Abrir en una terminal" onClick={() => onAbrir('terminal')}>
+        <button className="accion" title={t.barra.terminal} onClick={() => onAbrir('terminal')}>
           <TerminalWindow size={17} />
         </button>
-        <button className="accion" title="Abrir en Zed" onClick={() => onAbrir('editor')}>
+        <button className="accion" title={t.barra.editor} onClick={() => onAbrir('editor')}>
           <Code size={17} />
         </button>
-        <button className="accion" title="Abrir el remoto en el navegador" disabled={!web} onClick={() => onAbrir('web')}>
+        <button className="accion" title={t.barra.web} disabled={!web} onClick={() => onAbrir('web')}>
           <Globe size={17} />
         </button>
         <span className="barra-sep" />
-        <button className="accion cerrar" title="Cerrar (Ctrl+Q)" onClick={() => api.cerrarVentana()}>
+        <button className="accion cerrar" title={t.barra.cerrar} onClick={() => api.cerrarVentana()}>
           <X size={16} />
         </button>
       </div>
@@ -223,7 +224,7 @@ function SelectorRama({
       <input
         autoFocus
         className="selector-buscar"
-        placeholder="Buscar rama"
+        placeholder={t.selector.buscar}
         value={q}
         spellCheck={false}
         onChange={(e) => setQ(e.target.value)}
@@ -236,7 +237,7 @@ function SelectorRama({
       />
       <div className="selector-lista">
         {lista.map((r, k) => {
-          const titulo = r.tipo !== tipoAnterior && !r.actual ? (r.tipo === 'local' ? 'Locales' : 'Remotas') : null
+          const titulo = r.tipo !== tipoAnterior && !r.actual ? (r.tipo === 'local' ? t.selector.locales : t.selector.remotas) : null
           if (!r.actual) tipoAnterior = r.tipo
           return (
             <div key={r.tipo + r.nombre}>
@@ -262,13 +263,13 @@ function SelectorRama({
             </div>
           )
         })}
-        {lista.length === 0 && <div className="selector-vacio">Ninguna rama coincide</div>}
+        {lista.length === 0 && <div className="selector-vacio">{t.selector.ninguna}</div>}
       </div>
       <div className="selector-pie">
         <button className="selector-nueva" onClick={onNueva}>
-          <Plus size={13} weight="bold" /> Nueva rama…
+          <Plus size={13} weight="bold" /> {t.selector.nueva}
         </button>
-        <span>clic derecho: más opciones</span>
+        <span>{t.selector.pista}</span>
       </div>
     </div>
   )

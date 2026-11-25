@@ -2,10 +2,25 @@
   "name": "cauce",
   "version": "0.1.0",
   "private": true,
-  "description": "A beautiful, minimal Git client for Linux",
+  "description": "A beautiful, minimal Git client for Linux: stage hunks, browse a branch graph and switch repositories with Ctrl+P",
   "license": "GPL-3.0-or-later",
   "author": "hxst1",
   "homepage": "https://github.com/hxst1/Cauce",
+  "keywords": [
+    "git",
+    "git-client",
+    "git-gui",
+    "gui",
+    "linux",
+    "desktop",
+    "electron",
+    "react",
+    "version-control",
+    "diff",
+    "commit-graph",
+    "hyprland",
+    "wayland"
+  ],
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
@@ -14,7 +29,8 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "empaquetar": "electron-vite build && electron-builder --linux dir --publish never",
-    "instalar": "bash scripts/instalar.sh"
+    "instalar": "bash scripts/instalar.sh",
+    "distribuir": "electron-vite build && electron-builder --linux AppImage tar.gz deb --publish never"
   },
   "devDependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -60,9 +76,20 @@
           "Name": "Cauce",
           "GenericName": "Git Client",
           "StartupWMClass": "cauce",
-          "Keywords": "git;vcs;commit;branch;"
+          "Keywords": "git;vcs;commit;branch;",
+          "Comment": "A beautiful, minimal Git client"
         }
-      }
+      },
+      "maintainer": "hxst1 <hxst1@users.noreply.github.com>"
+    },
+    "afterPack": "scripts/despues-de-empaquetar.cjs",
+    "deb": {
+      "packageName": "cauce",
+      "artifactName": "${name}_${version}_amd64.${ext}",
+      "appArmorProfile": "packaging/deb/apparmor-profile.tpl",
+      "depends": [
+        "git"
+      ]
     }
   }
 }

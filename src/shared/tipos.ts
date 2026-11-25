@@ -4,6 +4,7 @@
 export interface Repo {
   ruta: string
   nombre: string
+  carpeta: string // dónde está, abreviada: «~/dev/personal/proyectos»
   grupo: string // personal | work | company | otros (la carpeta de ~/dev de la que cuelga)
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { t } from '@/i18n'
 
 export type ElementoMenu = { texto: string; icono?: ReactNode; accion: () => void; peligro?: boolean; deshabilitado?: boolean } | 'separador'
 
@@ -80,14 +81,14 @@ export function DialogoRama({
   const valido = /^[^\s~^:?*[\\]+$/.test(nombre) && !nombre.startsWith('-') && !nombre.endsWith('/') && !nombre.includes('..')
   const crear = () => valido && onCrear(nombre, cambiar)
   return (
-    <Dialogo titulo="Nueva rama" onCerrar={onCerrar}>
+    <Dialogo titulo={t.dialogos.nuevaRama} onCerrar={onCerrar}>
       <p className="dialogo-texto">
-        Desde <b>{desde.texto}</b>
+        {t.dialogos.desde} <b>{desde.texto}</b>
       </p>
       <input
         className="campo"
         autoFocus
-        placeholder="nombre-de-la-rama"
+        placeholder={t.dialogos.nombreRama}
         value={nombre}
         spellCheck={false}
         // Los espacios se vuelven guiones mientras se escribe.
@@ -101,14 +102,14 @@ export function DialogoRama({
         <button type="button" role="switch" aria-checked={cambiar} className={cambiar ? 'encendido' : ''} onClick={() => setCambiar(!cambiar)}>
           <span />
         </button>
-        Cambiar a la rama nueva
+        {t.dialogos.cambiarANueva}
       </label>
       <div className="dialogo-botones">
         <button className="boton" onClick={onCerrar}>
-          Cancelar
+          {t.comun.cancelar}
         </button>
         <button className="boton destacado" disabled={!valido} onClick={crear}>
-          Crear rama
+          {t.dialogos.crear}
         </button>
       </div>
     </Dialogo>
@@ -129,7 +130,7 @@ export function DialogoConfirmar({ c, onCerrar }: { c: Confirmacion; onCerrar: (
       <div className="dialogo-texto">{c.texto}</div>
       <div className="dialogo-botones">
         <button className="boton" onClick={onCerrar} autoFocus>
-          Cancelar
+          {t.comun.cancelar}
         </button>
         <button
           className={`boton ${c.peligro ? 'peligro' : 'destacado'}`}

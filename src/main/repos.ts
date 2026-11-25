@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, join, relative, sep } from 'node:path'
+import { basename, dirname, join, relative, sep } from 'node:path'
 import type { Repo } from '@shared/tipos'
 
 const IGNORAR = new Set(['node_modules', 'vendor', 'dist', 'out', 'build', 'target', '__pycache__', 'venv'])
@@ -54,6 +54,13 @@ async function buscar(dir: string, nivel: number, encontrados: string[]) {
   )
 }
 
+/** «/home/ana/dev/personal/cauce» → «~/dev/personal» */
+function abreviar(ruta: string) {
+  const d = dirname(ruta)
+  const casa = homedir()
+  return d === casa || d.startsWith(casa + sep) ? '~' + d.slice(casa.length) : d
+}
+
 export async function repos(): Promise<Repo[]> {
   const lista: Repo[] = []
   const vistos = new Set<string>()
@@ -66,13 +73,13 @@ export async function repos(): Promise<Repo[]> {
       const rel = relative(raiz, r)
       // ~/dev/personal/proyectos/cauce → grupo «personal»; un repo directamente en la raíz, «otros».
       const grupo = rel.includes(sep) ? rel.split(sep)[0] : 'otros'
-      lista.push({ ruta: r, nombre: basename(r), grupo })
+      lista.push({ ruta: r, nombre: basename(r), carpeta: abreviar(r), grupo })
     }
   }
   for (const r of prefs.extras) {
     if (vistos.has(r) || !existsSync(join(r, '.git'))) continue
     vistos.add(r)
-    lista.push({ ruta: r, nombre: basename(r), grupo: 'otros' })
+    lista.push({ ruta: r, nombre: basename(r), carpeta: abreviar(r), grupo: 'otros' })
   }
   return lista.sort((a, b) => a.nombre.localeCompare(b.nombre, undefined, { sensitivity: 'base' }))
 }

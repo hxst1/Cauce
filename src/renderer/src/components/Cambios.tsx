@@ -3,6 +3,7 @@ import { ArrowCounterClockwise, CheckCircle, Minus, PencilSimpleLine, Plus, Warn
 import type { Archivo, Diff, Estado } from '@shared/tipos'
 import { api, mensajeError } from '@/api'
 import { partesRuta } from '@/formato'
+import { t } from '@/i18n'
 import { VistaDiff, type AccionBloque } from '@/components/VistaDiff'
 
 type Seccion = 'conflictos' | 'preparados' | 'sinPreparar'
@@ -17,13 +18,10 @@ const borradores = new Map<string, string>()
 export function Letra({ a }: { a: Archivo }) {
   const texto = a.letra === '?' ? 'N' : a.letra
   return (
-    <span className={`letra l-${a.letra === '?' ? 'N' : a.letra}`} title={TITULOS[a.letra]}>
+    <span className={`letra l-${a.letra === '?' ? 'N' : a.letra}`} title={t.letras[a.letra]}>
       {texto}
     </span>
   )
-}
-const TITULOS: Record<Archivo['letra'], string> = {
-  M: 'Modificado', A: 'Añadido', D: 'Borrado', R: 'Renombrado', C: 'Copiado', T: 'Cambio de tipo', U: 'En conflicto', '?': 'Nuevo, sin seguimiento',
 }
 
 export function Cambios({
@@ -128,7 +126,7 @@ export function Cambios({
       await api.commit(repo, mensaje.trim() + '\n', modificar)
       setMensaje('')
       setModificar(false)
-      avisar(modificar ? 'Último commit modificado' : `Commit hecho en ${info.rama ?? 'HEAD'}`)
+      avisar(modificar ? t.cambios.modificado : t.cambios.hecho(info.rama ?? 'HEAD'))
     } catch (e) {
       avisar(mensajeError(e), true)
     }
@@ -173,19 +171,19 @@ export function Cambios({
           {s === 'sinPreparar' &&
             (confirmar === clave ? (
               <button className="boton-chico peligro" onMouseDown={(e) => e.stopPropagation()} onClick={() => (setConfirmar(null), hacer(() => api.descartar(repo, [a])))}>
-                {a.letra === '?' ? '¿A la papelera?' : '¿Descartar?'}
+                {a.letra === '?' ? t.cambios.aPapelera : t.cambios.descartar}
               </button>
             ) : (
-              <button className="boton-icono-chico" title={a.letra === '?' ? 'Mandar a la papelera' : 'Descartar los cambios'} onMouseDown={(e) => e.stopPropagation()} onClick={() => setConfirmar(clave)}>
+              <button className="boton-icono-chico" title={a.letra === '?' ? t.cambios.mandarPapelera : t.cambios.descartarCambios} onMouseDown={(e) => e.stopPropagation()} onClick={() => setConfirmar(clave)}>
                 <ArrowCounterClockwise size={13} />
               </button>
             ))}
           {s === 'conflictos' ? (
-            <button className="boton-icono-chico" title="Marcar como resuelto" onMouseDown={(e) => e.stopPropagation()} onClick={() => hacer(() => api.preparar(repo, [a.ruta]))}>
+            <button className="boton-icono-chico" title={t.cambios.marcarResuelto} onMouseDown={(e) => e.stopPropagation()} onClick={() => hacer(() => api.preparar(repo, [a.ruta]))}>
               <CheckCircle size={14} />
             </button>
           ) : (
-            <button className="boton-icono-chico" title={s === 'preparados' ? 'Quitar del commit' : 'Preparar para el commit'} onMouseDown={(e) => e.stopPropagation()} onClick={() => alternar(a, s)}>
+            <button className="boton-icono-chico" title={s === 'preparados' ? t.cambios.quitar : t.cambios.preparar} onMouseDown={(e) => e.stopPropagation()} onClick={() => alternar(a, s)}>
               {s === 'preparados' ? <Minus size={13} weight="bold" /> : <Plus size={13} weight="bold" />}
             </button>
           )}
@@ -201,14 +199,14 @@ export function Cambios({
           {total === 0 && (
             <div className="limpio">
               <CheckCircle size={30} weight="light" />
-              <b>Todo al día</b>
-              <span>No hay cambios sin commit en {info.rama ?? 'HEAD'}.</span>
+              <b>{t.cambios.todoAlDia}</b>
+              <span>{t.cambios.sinCambios(info.rama ?? 'HEAD')}</span>
             </div>
           )}
           {conflictos.length > 0 && (
             <>
               <div className="seccion-titulo conflicto">
-                <span>En conflicto</span>
+                <span>{t.cambios.enConflicto}</span>
                 <span className="seccion-n">{conflictos.length}</span>
               </div>
               {conflictos.map((a) => fila(a, 'conflictos'))}
@@ -217,10 +215,10 @@ export function Cambios({
           {preparados.length > 0 && (
             <>
               <div className="seccion-titulo">
-                <span>Preparados</span>
+                <span>{t.cambios.preparados}</span>
                 <span className="seccion-n">{preparados.length}</span>
                 <button className="seccion-boton" onClick={() => hacer(() => api.quitar(repo, preparados.map((a) => a.ruta), sinCommits))}>
-                  Quitar todo
+                  {t.cambios.quitarTodo}
                 </button>
               </div>
               {preparados.map((a) => fila(a, 'preparados'))}
@@ -229,10 +227,10 @@ export function Cambios({
           {sinPreparar.length > 0 && (
             <>
               <div className="seccion-titulo">
-                <span>Cambios</span>
+                <span>{t.cambios.cambios}</span>
                 <span className="seccion-n">{sinPreparar.length}</span>
                 <button className="seccion-boton" onClick={() => hacer(() => api.preparar(repo, sinPreparar.map((a) => a.ruta)))}>
-                  Preparar todo
+                  {t.cambios.prepararTodo}
                 </button>
               </div>
               {sinPreparar.map((a) => fila(a, 'sinPreparar'))}
@@ -244,7 +242,7 @@ export function Cambios({
           <textarea
             ref={texto}
             value={mensaje}
-            placeholder={'Resumen del commit\n\nDescripción (opcional)'}
+            placeholder={t.cambios.placeholder}
             spellCheck
             onChange={(e) => setMensaje(e.target.value)}
             onKeyDown={(e) => {
@@ -255,22 +253,22 @@ export function Cambios({
             }}
           />
           <div className="redactor-pie">
-            <label className="interruptor" title="Rehacer el último commit con lo preparado y este mensaje">
+            <label className="interruptor" title={t.cambios.modificarTitulo}>
               <button type="button" role="switch" aria-checked={modificar} className={modificar ? 'encendido' : ''} onClick={() => cambiarModificar(!modificar)} disabled={sinCommits}>
                 <span />
               </button>
-              Modificar el último
+              {t.cambios.modificar}
             </label>
-            <span className={`contador${primeraLinea > 72 ? ' largo' : ''}`} title="Caracteres de la primera línea (mejor 50, como mucho 72)">
+            <span className={`contador${primeraLinea > 72 ? ' largo' : ''}`} title={t.cambios.contadorTitulo}>
               {primeraLinea}
             </span>
           </div>
           <button className="boton-commit" disabled={!puede} onClick={hacerCommit} title="Ctrl+Enter">
-            {enviando ? 'Haciendo commit…' : modificar ? 'Modificar el último commit' : todo ? `Commit de todo en ${info.rama ?? 'HEAD'}` : `Commit en ${info.rama ?? 'HEAD'}`}
+            {enviando ? t.cambios.haciendo : modificar ? t.cambios.botonModificar : todo ? t.cambios.commitTodo(info.rama ?? 'HEAD') : t.cambios.commitEn(info.rama ?? 'HEAD')}
           </button>
           {info.identidad.email && (
-            <div className="identidad" title="La identidad de git de este repo (con tus includeIf)">
-              como <b>{info.identidad.nombre || '—'}</b> · {info.identidad.email}
+            <div className="identidad" title={t.cambios.identidadTitulo}>
+              {t.cambios.como} <b>{info.identidad.nombre || '—'}</b> · {info.identidad.email}
             </div>
           )}
         </div>
@@ -280,21 +278,21 @@ export function Cambios({
         {!archivoSel ? (
           <div className="vacio">
             <PencilSimpleLine size={38} weight="light" />
-            <span>{total ? 'Elige un archivo' : 'Nada que revisar'}</span>
+            <span>{total ? t.cambios.eligeArchivo : t.cambios.nadaQueRevisar}</span>
           </div>
         ) : sel?.seccion === 'conflictos' ? (
           <div className="vacio conflicto">
             <Warning size={38} weight="light" />
             <span>
-              <b>{archivoSel.ruta}</b> tiene conflictos
+              <b>{archivoSel.ruta}</b> {t.cambios.tieneConflictos}
             </span>
-            <p>Resuélvelos en tu editor y márcalo como resuelto. Cuando no quede ninguno, haz commit para terminar.</p>
+            <p>{t.cambios.conflictoTexto}</p>
             <div className="fila-botones">
               <button className="boton" onClick={() => api.abrirEn(repo, 'editor')}>
-                Abrir en Zed
+                {t.cambios.abrirZed}
               </button>
               <button className="boton destacado" onClick={() => hacer(() => api.preparar(repo, [archivoSel.ruta]))}>
-                Marcar como resuelto
+                {t.cambios.marcarResuelto}
               </button>
             </div>
           </div>
@@ -306,7 +304,7 @@ export function Cambios({
                 {archivoSel.original && <span className="diff-original">{archivoSel.original} → </span>}
                 {archivoSel.ruta}
               </span>
-              <span className="diff-donde">{sel?.seccion === 'preparados' ? 'Preparado' : archivoSel.letra === '?' ? 'Nuevo' : 'Sin preparar'}</span>
+              <span className="diff-donde">{sel?.seccion === 'preparados' ? t.cambios.preparado : archivoSel.letra === '?' ? t.cambios.nuevo : t.cambios.sinPreparar}</span>
             </div>
             <div className="diff-scroll">
               {diff && (

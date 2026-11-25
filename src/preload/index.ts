@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ApiPrincipal } from '../main/index'
+import type { InfoIdioma } from '../shared/i18n'
 
 type Promesa<F> = F extends (...a: infer A) => infer R ? (...a: A) => Promise<Awaited<R>> : never
 type Api = { [K in keyof ApiPrincipal]: Promesa<ApiPrincipal[K]> }
@@ -26,6 +27,7 @@ const escuchar = (canal: string) => (fn: (...a: unknown[]) => void) => {
 
 const cauce = {
   api,
+  idioma: ipcRenderer.sendSync('cauce:idioma') as InfoIdioma,
   // Algo ha cambiado en el .git del repo vigilado (commit, cambio de rama…).
   alCambio: escuchar('cauce:cambio') as (fn: (repo: string) => void) => () => void,
   // La ventana ha vuelto a tener el foco: buen momento para mirar si hay cambios.

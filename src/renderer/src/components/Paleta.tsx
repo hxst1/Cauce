@@ -2,15 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { FolderSimple, MagnifyingGlass, Plus } from '@phosphor-icons/react'
 import type { Repo, Resumen } from '@shared/tipos'
 import { nombreGrupo } from '@/formato'
+import { t } from '@/i18n'
 
 // Orden de los grupos: los recientes y luego tus tres cuentas.
 const ORDEN = ['personal', 'work', 'company']
-
-/** «/home/ana/dev/personal/proyectos/cauce» → «~/dev/personal/proyectos» */
-function carpetaCorta(ruta: string) {
-  const sinNombre = ruta.slice(0, ruta.lastIndexOf('/'))
-  return sinNombre.replace(/^\/home\/[^/]+/, '~')
-}
 
 /**
  * Paleta para ir a un repositorio (Ctrl+P o clic en su nombre): escribes, ↑/↓, Enter. Sin buscar,
@@ -57,10 +52,10 @@ export function Paleta({
       const encontrados = repos
         .filter((r) => r.nombre.toLowerCase().includes(f) || r.ruta.toLowerCase().includes(f))
         .sort((a, b) => +b.nombre.toLowerCase().startsWith(f) - +a.nombre.toLowerCase().startsWith(f))
-      meter('Resultados', encontrados)
+      meter(t.paleta.resultados, encontrados)
     } else {
       const porRuta = new Map(repos.map((r) => [r.ruta, r]))
-      meter('Recientes', recientes.filter((r) => r !== activo).map((r) => porRuta.get(r)!).filter(Boolean).slice(0, 4))
+      meter(t.paleta.recientes, recientes.filter((r) => r !== activo).map((r) => porRuta.get(r)!).filter(Boolean).slice(0, 4))
       const grupos = new Map<string, Repo[]>()
       for (const r of repos) grupos.set(r.grupo, [...(grupos.get(r.grupo) ?? []), r])
       const pos = (g: string) => (ORDEN.includes(g) ? ORDEN.indexOf(g) : g === 'otros' ? 99 : 50)
@@ -81,7 +76,7 @@ export function Paleta({
           <MagnifyingGlass size={16} />
           <input
             autoFocus
-            placeholder="Ir a un repositorio…"
+            placeholder={t.paleta.buscar}
             value={q}
             spellCheck={false}
             onChange={(e) => setQ(e.target.value)}
@@ -112,25 +107,25 @@ export function Paleta({
               >
                 <FolderSimple size={16} weight={r.ruta === activo ? 'fill' : 'regular'} />
                 <span className="paleta-nombre">{r.nombre}</span>
-                <span className="paleta-ruta">{carpetaCorta(r.ruta)}</span>
+                <span className="paleta-ruta">{r.carpeta}</span>
                 <span className="paleta-estado">
                   {res?.rama && <span className="paleta-rama">{res.rama}</span>}
                   {res && res.delante > 0 && <span>↑{res.delante}</span>}
                   {res && res.detras > 0 && <span>↓{res.detras}</span>}
-                  {res && res.cambios > 0 && <span className="paleta-punto" title={`${res.cambios} archivos con cambios`} />}
+                  {res && res.cambios > 0 && <span className="paleta-punto" title={t.paleta.conCambios(res.cambios)} />}
                 </span>
               </button>
             )
           })}
-          {elegibles.length === 0 && <div className="paleta-vacio">Ningún repositorio coincide</div>}
+          {elegibles.length === 0 && <div className="paleta-vacio">{t.paleta.ninguno}</div>}
         </div>
         <div className="paleta-pie">
           <button onClick={onAnadir}>
-            <Plus size={12} weight="bold" /> Añadir uno de fuera de ~/dev…
+            <Plus size={12} weight="bold" /> {t.paleta.anadir}
           </button>
           <span>
             <kbd>↑</kbd>
-            <kbd>↓</kbd> moverse · <kbd>Enter</kbd> abrir
+            <kbd>↓</kbd> {t.paleta.moverse} · <kbd>Enter</kbd> {t.paleta.abrir}
           </span>
         </div>
       </div>

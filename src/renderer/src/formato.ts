@@ -1,12 +1,14 @@
-const relativo = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
-const corta = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' })
-const conAno = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' })
-const larga = new Intl.DateTimeFormat('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+import { locale, t } from '@/i18n'
 
-/** «hace 5 minutos», «ayer», «hace 3 días», «12 nov», «3 mar 2024». */
+const relativo = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+const corta = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' })
+const conAno = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+const larga = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+/** «5 minutes ago», «yesterday», «3 days ago», «Nov 12», «Mar 3, 2024» (o en español). */
 export function fechaRelativa(ms: number, ahora = Date.now()): string {
   const s = (ahora - ms) / 1000
-  if (s < 45) return 'ahora'
+  if (s < 45) return t.fechas.ahora
   if (s < 3600) return relativo.format(-Math.round(s / 60), 'minute')
   if (s < 86400) return relativo.format(-Math.round(s / 3600), 'hour')
   if (s < 7 * 86400) return relativo.format(-Math.round(s / 86400), 'day')
@@ -29,5 +31,4 @@ export function partesRuta(ruta: string) {
   return { nombre: ruta.slice(i + 1), carpeta: i > 0 ? ruta.slice(0, i) : '' }
 }
 
-const GRUPOS: Record<string, string> = { personal: 'Personal', work: 'Trabajo', company: 'Empresa', otros: 'Otros' }
-export const nombreGrupo = (g: string) => GRUPOS[g] ?? g.charAt(0).toUpperCase() + g.slice(1)
+export const nombreGrupo = (g: string) => t.grupos[g] ?? g.charAt(0).toUpperCase() + g.slice(1)

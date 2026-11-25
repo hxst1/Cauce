@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
 import { ArrowCounterClockwise, Minus, Plus } from '@phosphor-icons/react'
 import type { Diff } from '@shared/tipos'
+import { t } from '@/i18n'
 
 export type AccionBloque = 'preparar' | 'quitar' | 'descartar'
 
@@ -19,8 +20,8 @@ export const VistaDiff = memo(function VistaDiff({
 }) {
   const [confirmar, setConfirmar] = useState<number | null>(null)
 
-  if (diff.binario) return <div className="diff-nota">Archivo binario: no hay texto que comparar.</div>
-  if (!diff.bloques.length) return <div className="diff-nota">Sin cambios de contenido (permisos o archivo vacío).</div>
+  if (diff.binario) return <div className="diff-nota">{t.diff.binario}</div>
+  if (!diff.bloques.length) return <div className="diff-nota">{t.diff.sinContenido}</div>
 
   return (
     <div className="diff">
@@ -33,21 +34,21 @@ export const VistaDiff = memo(function VistaDiff({
                 {acciones.includes('descartar') &&
                   (confirmar === i ? (
                     <button className="boton-chico peligro" onClick={() => (setConfirmar(null), onAccion(i, b.cabecera, 'descartar'))} onMouseLeave={() => setConfirmar(null)}>
-                      ¿Descartar el bloque?
+                      {t.diff.descartarBloque}
                     </button>
                   ) : (
-                    <button className="boton-chico" title="Descartar este bloque" onClick={() => setConfirmar(i)}>
+                    <button className="boton-chico" title={t.diff.descartarBloqueTitulo} onClick={() => setConfirmar(i)}>
                       <ArrowCounterClockwise size={13} />
                     </button>
                   ))}
                 {acciones.includes('preparar') && (
                   <button className="boton-chico" onClick={() => onAccion(i, b.cabecera, 'preparar')}>
-                    <Plus size={12} weight="bold" /> Preparar bloque
+                    <Plus size={12} weight="bold" /> {t.diff.prepararBloque}
                   </button>
                 )}
                 {acciones.includes('quitar') && (
                   <button className="boton-chico" onClick={() => onAccion(i, b.cabecera, 'quitar')}>
-                    <Minus size={12} weight="bold" /> Quitar bloque
+                    <Minus size={12} weight="bold" /> {t.diff.quitarBloque}
                   </button>
                 )}
               </span>
@@ -59,7 +60,7 @@ export const VistaDiff = memo(function VistaDiff({
                 <div className="dl nota" key={j}>
                   <span className="dl-num" />
                   <span className="dl-num" />
-                  <span className="dl-texto">sin salto de línea al final</span>
+                  <span className="dl-texto">{t.diff.sinSalto}</span>
                 </div>
               ) : (
                 <div className={`dl ${l.tipo === '+' ? 'mas' : l.tipo === '-' ? 'menos' : ''}`} key={j}>
@@ -75,7 +76,7 @@ export const VistaDiff = memo(function VistaDiff({
           </div>
         </section>
       ))}
-      {diff.recortado && <div className="diff-nota">El diff es muy largo: se muestra solo el principio.</div>}
+      {diff.recortado && <div className="diff-nota">{t.diff.recortado}</div>}
     </div>
   )
 })
