@@ -1,0 +1,68 @@
+{
+  "name": "cauce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A beautiful, minimal Git client for Linux",
+  "license": "GPL-3.0-or-later",
+  "author": "hxst1",
+  "homepage": "https://github.com/hxst1/Cauce",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "empaquetar": "electron-vite build && electron-builder --linux dir --publish never",
+    "instalar": "bash scripts/instalar.sh"
+  },
+  "devDependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^7.0.2",
+    "virtua": "^0.54.2",
+    "vite": "^8.3.8"
+  },
+  "productName": "Cauce",
+  "desktopName": "cauce.desktop",
+  "build": {
+    "appId": "io.github.hxst1.cauce",
+    "productName": "Cauce",
+    "executableName": "cauce",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**",
+      "resources/**",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "category": "Development",
+      "icon": "resources/cauce.png",
+      "executableName": "cauce",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "synopsis": "Beautiful, minimal Git client",
+      "desktop": {
+        "entry": {
+          "Name": "Cauce",
+          "GenericName": "Git Client",
+          "StartupWMClass": "cauce",
+          "Keywords": "git;vcs;commit;branch;"
+        }
+      }
+    }
+  }
+}

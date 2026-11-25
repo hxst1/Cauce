@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- En negativo respecto a NimboMail: cristal plateado con el grafo en oscuro. -->
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#e9ebed"/>
+      <stop offset="1" stop-color="#a9b1ba"/>
+    </linearGradient>
+    <linearGradient id="brillo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" rx="104" fill="url(#fondo)"/>
+  <rect x="32" y="32" width="448" height="448" rx="104" fill="url(#brillo)"/>
+  <rect x="33" y="33" width="446" height="446" rx="103" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="2"/>
+  <path d="M188 140c0 52 136 30 136 82v68c0 52-136 30-136 82" stroke="#5d6873" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M188 112v288" stroke="#1f2123" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <circle cx="188" cy="112" r="30" fill="#1f2123"/>
+  <circle cx="324" cy="256" r="24" fill="#5d6873"/>
+  <circle cx="188" cy="400" r="30" fill="#1f2123"/>
+</svg>
