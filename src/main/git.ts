@@ -2,9 +2,10 @@
 // configuración, tus identidades por carpeta (includeIf), tus alias SSH, los hooks y el llavero.
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
+import { readFile, stat } from 'node:fs/promises'
 import { t } from './idioma'
-import type { Archivo, Bloque, Commit, DetalleCommit, Diff, Estado, InfoRepo, Letra, Linea, Operacion, Rama, Ref, Resumen } from '@shared/tipos'
+import type { Archivo, Bloque, Fuente, Commit, DetalleCommit, Diff, Estado, InfoRepo, Letra, Linea, Operacion, Rama, Ref, Resumen } from '@shared/tipos'
 
 // Contraseñas de SSH y de HTTPS en un diálogo gráfico (git corre sin terminal).
 const ASKPASS = ['/usr/bin/ksshaskpass', '/usr/lib/ssh/ssh-askpass', '/usr/bin/ssh-askpass', '/usr/lib/seahorse/ssh-askpass'].find(existsSync)
@@ -160,6 +161,7 @@ export async function resumen(repo: string): Promise<Resumen> {
 // ------------------------------------------------------------ diffs
 
 const MAX_LINEAS = 6000
+const MAX_LINEAS_COMPLETO = 40000 // con «archivo completo» cabe mucho más
 
 interface DiffCrudo {
   cabecera: string // de «diff --git» a «+++ b/…», tal cual (para volver a aplicar bloques sueltos)
@@ -184,7 +186,7 @@ function trocear(salida: string): DiffCrudo {
   return { cabecera: cab.join('\n'), bloques, binario }
 }
 
-function analizar(crudo: DiffCrudo, nuevo: boolean): Diff {
+function analizar(crudo: DiffCrudo, nuevo: boolean, max = MAX_LINEAS): Diff {
   let total = 0
   let recortado = false
   const bloques: Bloque[] = []
@@ -194,7 +196,7 @@ function analizar(crudo: DiffCrudo, nuevo: boolean): Diff {
     let nuevoN = m ? Number(m[2]) : 0
     const lineas: Linea[] = []
     for (const l of b.texto.split('\n').slice(1)) {
-      if (total++ > MAX_LINEAS) {
+      if (total++ > max) {
         recortado = true
         break
       }
@@ -211,19 +213,20 @@ function analizar(crudo: DiffCrudo, nuevo: boolean): Diff {
   return { binario: crudo.binario, nuevo, bloques, recortado }
 }
 
-const BASE_DIFF = ['--no-color', '--no-ext-diff', '-M', '-U3']
+/** Opciones de git diff. Con `completo`, todo el archivo como contexto (un solo bloque con todo). */
+const baseDiff = (completo = false) => ['--no-color', '--no-ext-diff', '-M', completo ? '-U1000000' : '-U3']
 
-async function diffCrudo(repo: string, a: Archivo, preparado: boolean): Promise<DiffCrudo> {
+async function diffCrudo(repo: string, a: Archivo, preparado: boolean, completo = false): Promise<DiffCrudo> {
   if (a.letra === '?') {
-    return trocear(await git(repo, ['diff', ...BASE_DIFF, '--no-index', '--', '/dev/null', a.ruta], { codigosValidos: [1] }))
+    return trocear(await git(repo, ['diff', ...baseDiff(completo), '--no-index', '--', '/dev/null', a.ruta], { codigosValidos: [1] }))
   }
   const rutas = a.original ? [a.original, a.ruta] : [a.ruta]
-  return trocear(await git(repo, ['diff', ...BASE_DIFF, ...(preparado ? ['--cached'] : []), '--', ...rutas]))
+  return trocear(await git(repo, ['diff', ...baseDiff(completo), ...(preparado ? ['--cached'] : []), '--', ...rutas]))
 }
 
 /** El diff de un archivo con cambios: lo preparado (contra HEAD) o lo que no (contra el índice). */
-export async function diff(repo: string, a: Archivo, preparado: boolean): Promise<Diff> {
-  return analizar(await diffCrudo(repo, a, preparado), a.letra === '?' || a.letra === 'A')
+export async function diff(repo: string, a: Archivo, preparado: boolean, completo = false): Promise<Diff> {
+  return analizar(await diffCrudo(repo, a, preparado, completo), a.letra === '?' || a.letra === 'A', completo ? MAX_LINEAS_COMPLETO : MAX_LINEAS)
 }
 
 /** Prepara, quita del índice o descarta un único bloque de un archivo. */
@@ -350,12 +353,49 @@ export async function detalle(repo: string, hash: string): Promise<DetalleCommit
   }
 }
 
-export async function diffCommit(repo: string, hash: string, padre: string | undefined, a: Archivo): Promise<Diff> {
+export async function diffCommit(repo: string, hash: string, padre: string | undefined, a: Archivo, completo = false): Promise<Diff> {
   const rutas = a.original ? [a.original, a.ruta] : [a.ruta]
   const salida = padre
-    ? await git(repo, ['diff', ...BASE_DIFF, padre, hash, '--', ...rutas])
-    : await git(repo, ['show', ...BASE_DIFF, '--format=', hash, '--', ...rutas])
-  return analizar(trocear(salida), a.letra === 'A')
+    ? await git(repo, ['diff', ...baseDiff(completo), padre, hash, '--', ...rutas])
+    : await git(repo, ['show', ...baseDiff(completo), '--format=', hash, '--', ...rutas])
+  return analizar(trocear(salida), a.letra === 'A', completo ? MAX_LINEAS_COMPLETO : MAX_LINEAS)
+}
+
+// ------------------------------------------------------------ contenido de archivos (imágenes, PDF, hojas)
+
+const MAX_ARCHIVO = 60 * 1024 * 1024
+
+/** Como git(), pero devuelve los bytes tal cual (para archivos binarios). */
+function gitBytes(repo: string, args: string[]): Promise<Buffer> {
+  return new Promise((resolver, rechazar) => {
+    const p = spawn('git', args, { cwd: repo, env: ENV })
+    const trozos: Buffer[] = []
+    const errores: Buffer[] = []
+    let tamano = 0
+    p.stdout.on('data', (d: Buffer) => {
+      tamano += d.length
+      if (tamano > MAX_ARCHIVO) return p.kill()
+      trozos.push(d)
+    })
+    p.stderr.on('data', (d: Buffer) => errores.push(d))
+    p.on('error', (e) => rechazar(new ErrorGit(e.message)))
+    p.on('close', (codigo) =>
+      codigo === 0 ? resolver(Buffer.concat(trozos)) : rechazar(new ErrorGit(limpiarMensaje(Buffer.concat(errores).toString('utf8')) || t.git.fallo(args[0], String(codigo ?? 'killed')))),
+    )
+    p.stdin.end()
+  })
+}
+
+/**
+ * Los bytes de una versión de un archivo: de git («HEAD:ruta», «hash:ruta», «:ruta» para el índice)
+ * o del disco (ruta dentro del repo).
+ */
+export async function leerArchivo(repo: string, f: Fuente): Promise<Uint8Array> {
+  if ('git' in f) return gitBytes(repo, ['cat-file', 'blob', f.git])
+  const abs = resolve(repo, f.disco)
+  if (abs !== repo && !abs.startsWith(repo + sep)) throw new ErrorGit('Path outside the repository')
+  if ((await stat(abs)).size > MAX_ARCHIVO) throw new ErrorGit('File too large to preview')
+  return readFile(abs)
 }
 
 // ------------------------------------------------------------ ramas

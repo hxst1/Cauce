@@ -1,6 +1,6 @@
 {
   "name": "cauce",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A beautiful, minimal Git client for Linux: stage hunks, browse a branch graph and switch repositories with Ctrl+P",
   "license": "GPL-3.0-or-later",
@@ -45,7 +45,8 @@
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
     "virtua": "^0.54.2",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "productName": "Cauce",
   "desktopName": "cauce.desktop",

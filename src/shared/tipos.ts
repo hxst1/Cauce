@@ -104,6 +104,9 @@ export interface Diff {
   recortado: boolean // tan grande que no se muestra entero
 }
 
+/** Una versión de un archivo: en git («hash:ruta», «HEAD:ruta», «:ruta» = índice) o en el disco. */
+export type Fuente = { git: string } | { disco: string }
+
 /** Lo que sale de una operación con red (fetch, pull, push…): el texto de git, por si hay algo que contar. */
 export interface Resultado {
   salida: string

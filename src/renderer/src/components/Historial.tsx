@@ -1,13 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { VList, type VListHandle } from 'virtua'
-import { Copy, GitCommit, GitMerge, Tag } from '@phosphor-icons/react'
-import type { Archivo, Commit, DetalleCommit, Diff, InfoRepo, Ref } from '@shared/tipos'
+import { ArrowsInLineVertical, ArrowsOutLineVertical, CaretRight, Copy, GitCommit, GitMerge, Tag } from '@phosphor-icons/react'
+import type { Commit, DetalleCommit, Diff, InfoRepo, Ref } from '@shared/tipos'
 import { api, mensajeError } from '@/api'
 import { calcularGrafo, colorCarril, type FilaGrafo } from '@/grafo'
 import { fechaLarga, fechaRelativa, iniciales, partesRuta } from '@/formato'
 import { t } from '@/i18n'
 import { Letra } from '@/components/Cambios'
 import { VistaDiff } from '@/components/VistaDiff'
+import { tipoVista, VisorBinario } from '@/components/Visor'
 
 const ALTO = 52 // alto de cada fila: el grafo se dibuja fila a fila y tiene que encajar
 const PASO = 14 // separación entre carriles
@@ -223,7 +224,8 @@ function Detalle({
   onIrA: (hash: string) => void
 }) {
   const [d, setD] = useState<DetalleCommit | null>(null)
-  const [archivo, setArchivo] = useState<Archivo | null>(null)
+  const [abierto, setAbierto] = useState<string | null>(null) // el archivo desplegado
+  const [completo, setCompleto] = useState(false) // el archivo entero, no solo los cambios
   const [diff, setDiff] = useState<Diff | null>(null)
 
   useEffect(() => {
@@ -232,7 +234,7 @@ function Detalle({
       (x) => {
         if (!vivo) return
         setD(x)
-        setArchivo(x.archivos[0] ?? null)
+        setAbierto(x.archivos[0]?.ruta ?? null)
       },
       (e) => avisar(mensajeError(e), true),
     )
@@ -241,15 +243,16 @@ function Detalle({
     }
   }, [repo, hash, avisar])
 
+  const archivo = d?.archivos.find((a) => a.ruta === abierto) ?? null
   useEffect(() => {
     setDiff(null)
-    if (!d || !archivo) return
+    if (!d || !archivo || tipoVista(archivo.ruta) !== 'texto') return
     let vivo = true
-    api.diffCommit(repo, d.hash, d.padres[0], archivo).then((x) => vivo && setDiff(x), () => {})
+    api.diffCommit(repo, d.hash, d.padres[0], archivo, completo).then((x) => vivo && setDiff(x), () => {})
     return () => {
       vivo = false
     }
-  }, [repo, d, archivo])
+  }, [repo, d, archivo, completo])
 
   if (!d || d.hash !== hash) return <div className="detalle" />
 
@@ -322,34 +325,62 @@ function Detalle({
         </div>
         {d.archivos.map((a) => {
           const { nombre, carpeta } = partesRuta(a.ruta)
+          const abiertoEste = a.ruta === abierto
+          const tipo = tipoVista(a.ruta)
           return (
-            <div key={a.ruta} className={`archivo${archivo?.ruta === a.ruta ? ' activa' : ''}`} onMouseDown={() => setArchivo(a)} title={a.original ? `${a.original} → ${a.ruta}` : a.ruta}>
-              <Letra a={a} />
-              <span className="archivo-nombre">{nombre}</span>
-              <span className="archivo-carpeta">{carpeta}</span>
-              <span className="stats">
-                {a.mas !== undefined ? (
-                  <>
-                    <span className="stat-mas">+{a.mas}</span> <span className="stat-menos">−{a.menos}</span>
-                  </>
-                ) : (
-                  <span className="stat-bin">{t.historial.binario}</span>
+            <div key={a.ruta} className={`archivo-commit${abiertoEste ? ' abierto' : ''}`}>
+              <div
+                className={`archivo${abiertoEste ? ' activa' : ''}`}
+                onClick={() => setAbierto(abiertoEste ? null : a.ruta)}
+                title={a.original ? `${a.original} → ${a.ruta}` : a.ruta}
+              >
+                <CaretRight size={10} weight="bold" className="archivo-caret" />
+                <Letra a={a} />
+                <span className="archivo-nombre">{nombre}</span>
+                <span className="archivo-carpeta">{carpeta}</span>
+                {abiertoEste && tipo === 'texto' && (
+                  <button
+                    className={`boton-chico${completo ? ' activo' : ''}`}
+                    title={t.diff.completoTitulo}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setCompleto((v) => !v)
+                    }}
+                  >
+                    {completo ? <ArrowsInLineVertical size={13} /> : <ArrowsOutLineVertical size={13} />}
+                    {completo ? t.diff.soloCambios : t.diff.completo}
+                  </button>
                 )}
-              </span>
+                <span className="stats">
+                  {a.mas !== undefined ? (
+                    <>
+                      <span className="stat-mas">+{a.mas}</span> <span className="stat-menos">−{a.menos}</span>
+                    </>
+                  ) : (
+                    <span className="stat-bin">{t.historial.binario}</span>
+                  )}
+                </span>
+              </div>
+              {abiertoEste && (
+                <div className="archivo-cambios">
+                  {tipo !== 'texto' ? (
+                    <VisorBinario
+                      repo={repo}
+                      ruta={a.ruta}
+                      antes={d.padres[0] && a.letra !== 'A' ? { git: `${d.padres[0]}:${a.original ?? a.ruta}` } : null}
+                      despues={a.letra !== 'D' ? { git: `${d.hash}:${a.ruta}` } : null}
+                    />
+                  ) : diff ? (
+                    <VistaDiff diff={diff} />
+                  ) : (
+                    <div className="visor-nota">{t.visor.cargando}</div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
       </div>
-
-      {archivo && diff && (
-        <div className="tarjeta diff-tarjeta">
-          <div className="diff-titulo">
-            <Letra a={archivo} />
-            <span className="diff-ruta">{archivo.ruta}</span>
-          </div>
-          <VistaDiff diff={diff} />
-        </div>
-      )}
     </div>
   )
 }

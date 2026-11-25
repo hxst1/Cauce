@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowCounterClockwise, CheckCircle, Minus, PencilSimpleLine, Plus, Warning } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowsInLineVertical, ArrowsOutLineVertical, CheckCircle, Minus, PencilSimpleLine, Plus, Warning } from '@phosphor-icons/react'
 import type { Archivo, Diff, Estado } from '@shared/tipos'
 import { api, mensajeError } from '@/api'
 import { partesRuta } from '@/formato'
 import { t } from '@/i18n'
 import { VistaDiff, type AccionBloque } from '@/components/VistaDiff'
+import { tipoVista, VisorBinario } from '@/components/Visor'
 
 type Seccion = 'conflictos' | 'preparados' | 'sinPreparar'
 interface Sel {
@@ -44,6 +45,7 @@ export function Cambios({
   const [modificar, setModificar] = useState(false)
   const [confirmar, setConfirmar] = useState<string | null>(null) // ruta del archivo a descartar
   const [enviando, setEnviando] = useState(false)
+  const [completo, setCompleto] = useState(false) // el archivo entero, no solo los cambios
   const texto = useRef<HTMLTextAreaElement>(null)
   const listaRef = useRef<HTMLDivElement>(null)
 
@@ -76,9 +78,9 @@ export function Cambios({
 
   // El diff del archivo elegido (y otra vez en cada sondeo, por si se ha seguido editando).
   useEffect(() => {
-    if (!archivoSel || sel?.seccion === 'conflictos') return setDiff(null)
+    if (!archivoSel || sel?.seccion === 'conflictos' || tipoVista(archivoSel.ruta) !== 'texto') return setDiff(null)
     let vivo = true
-    api.diff(repo, archivoSel, sel!.seccion === 'preparados').then(
+    api.diff(repo, archivoSel, sel!.seccion === 'preparados', completo).then(
       (d) => vivo && setDiff((prev) => (JSON.stringify(prev) === JSON.stringify(d) ? prev : d)),
       () => vivo && setDiff(null),
     )
@@ -86,7 +88,7 @@ export function Cambios({
       vivo = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repo, archivoSel?.ruta, archivoSel?.letra, sel?.seccion, pulso, estado])
+  }, [repo, archivoSel?.ruta, archivoSel?.letra, sel?.seccion, pulso, estado, completo])
 
   const hacer = useCallback(
     async (fn: () => Promise<unknown>) => {
@@ -304,16 +306,40 @@ export function Cambios({
                 {archivoSel.original && <span className="diff-original">{archivoSel.original} → </span>}
                 {archivoSel.ruta}
               </span>
+              {tipoVista(archivoSel.ruta) === 'texto' && (
+                <button className={`boton-chico${completo ? ' activo' : ''}`} title={t.diff.completoTitulo} onClick={() => setCompleto((v) => !v)}>
+                  {completo ? <ArrowsInLineVertical size={13} /> : <ArrowsOutLineVertical size={13} />}
+                  {completo ? t.diff.soloCambios : t.diff.completo}
+                </button>
+              )}
               <span className="diff-donde">{sel?.seccion === 'preparados' ? t.cambios.preparado : archivoSel.letra === '?' ? t.cambios.nuevo : t.cambios.sinPreparar}</span>
             </div>
             <div className="diff-scroll">
-              {diff && (
-                <VistaDiff
-                  diff={diff}
-                  // Los archivos nuevos van enteros (no tienen bloques que preparar por separado).
-                  acciones={archivoSel.letra === '?' ? undefined : sel?.seccion === 'preparados' ? ['quitar'] : ['descartar', 'preparar']}
-                  onAccion={accionBloque}
+              {tipoVista(archivoSel.ruta) !== 'texto' ? (
+                <VisorBinario
+                  repo={repo}
+                  ruta={archivoSel.ruta}
+                  // Preparado: HEAD → índice. Sin preparar: índice → disco.
+                  antes={
+                    sel?.seccion === 'preparados'
+                      ? info.hash && archivoSel.letra !== 'A'
+                        ? { git: `HEAD:${archivoSel.original ?? archivoSel.ruta}` }
+                        : null
+                      : archivoSel.letra !== '?'
+                        ? { git: `:${archivoSel.ruta}` }
+                        : null
+                  }
+                  despues={archivoSel.letra === 'D' ? null : sel?.seccion === 'preparados' ? { git: `:${archivoSel.ruta}` } : { disco: archivoSel.ruta }}
                 />
+              ) : (
+                diff && (
+                  <VistaDiff
+                    diff={diff}
+                    // Los archivos nuevos van enteros, y con el archivo completo todo es un solo bloque: sin botones por bloque.
+                    acciones={archivoSel.letra === '?' || completo ? undefined : sel?.seccion === 'preparados' ? ['quitar'] : ['descartar', 'preparar']}
+                    onAccion={accionBloque}
+                  />
+                )
               )}
             </div>
           </>

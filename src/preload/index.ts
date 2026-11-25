@@ -9,7 +9,7 @@ type Api = { [K in keyof ApiPrincipal]: Promesa<ApiPrincipal[K]> }
 const METODOS: (keyof ApiPrincipal)[] = [
   'repos', 'preferencias', 'recordar', 'anadirRepo', 'resumenes', 'vigilar',
   'estado', 'diff', 'bloque', 'preparar', 'quitar', 'descartar', 'commit', 'ultimoMensaje',
-  'historial', 'detalle', 'diffCommit',
+  'historial', 'detalle', 'diffCommit', 'leerArchivo',
   'ramas', 'cambiarRama', 'crearRama', 'borrarRama', 'fusionar', 'abortar',
   'traer', 'bajar', 'subir',
   'abrirEn', 'abrirEnlace', 'webRemoto', 'copiar', 'cerrarVentana', 'salir',

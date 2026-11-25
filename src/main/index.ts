@@ -2,8 +2,8 @@ import { enableCompileCache } from 'node:module'
 import { spawn } from 'node:child_process'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { join } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
-import type { Archivo, Operacion } from '@shared/tipos'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, shell } from 'electron'
+import type { Archivo, Fuente, Operacion } from '@shared/tipos'
 import * as g from './git'
 import { cambiarPreferencias, iniciarPreferencias, preferencias, repos } from './repos'
 import { IDIOMA, t } from './idioma'
@@ -91,7 +91,7 @@ const API = {
   vigilar: (repo: string | null) => vigilar(repo),
 
   estado: (repo: string) => g.estado(repo),
-  diff: (repo: string, a: Archivo, preparado: boolean) => g.diff(repo, a, preparado),
+  diff: (repo: string, a: Archivo, preparado: boolean, completo?: boolean) => g.diff(repo, a, preparado, completo),
   bloque: (repo: string, a: Archivo, preparado: boolean, cabecera: string, indice: number, accion: 'preparar' | 'quitar' | 'descartar') =>
     g.bloque(repo, a, preparado, cabecera, indice, accion),
   preparar: (repo: string, rutas: string[]) => g.preparar(repo, rutas).then(() => {}),
@@ -111,7 +111,8 @@ const API = {
 
   historial: (repo: string, o: Parameters<typeof g.historial>[1]) => g.historial(repo, o),
   detalle: (repo: string, hash: string) => g.detalle(repo, hash),
-  diffCommit: (repo: string, hash: string, padre: string | undefined, a: Archivo) => g.diffCommit(repo, hash, padre, a),
+  diffCommit: (repo: string, hash: string, padre: string | undefined, a: Archivo, completo?: boolean) => g.diffCommit(repo, hash, padre, a, completo),
+  leerArchivo: (repo: string, f: Fuente) => g.leerArchivo(repo, f),
 
   ramas: (repo: string) => g.ramas(repo),
   cambiarRama: (repo: string, nombre: string, remota: boolean) => g.cambiarRama(repo, nombre, remota).then(() => {}),
@@ -177,11 +178,17 @@ function crearVentana(): BrowserWindow {
       sandbox: true,
       nodeIntegration: false,
       spellcheck: true,
+      plugins: true, // el visor de PDF de Chromium
     },
   })
   win.once('ready-to-show', () => win.show())
-  // Sin zoom heredado: Chromium recuerda el de Ctrl+rueda o Ctrl+- entre sesiones y la interfaz se ve diminuta.
-  win.webContents.on('did-finish-load', () => win.webContents.setZoomFactor(1))
+  // Sin zoom: ni heredado (Chromium lo recuerda entre sesiones), ni con el pellizco del touchpad, ni con
+  // Ctrl+rueda o Ctrl+=/-/0. Si no, la interfaz acaba enorme o diminuta sin querer.
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.setZoomFactor(1)
+    win.webContents.setVisualZoomLevelLimits(1, 1)
+  })
+  win.webContents.on('zoom-changed', () => win.webContents.setZoomFactor(1))
   win.on('focus', () => win.webContents.send('cauce:foco'))
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url)
@@ -196,6 +203,7 @@ function crearVentana(): BrowserWindow {
       e.preventDefault()
       app.quit()
     }
+    if (i.type === 'keyDown' && i.control && ['+', '=', '-', '_', '0'].includes(i.key)) e.preventDefault()
   })
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
@@ -210,6 +218,8 @@ app.on('second-instance', () => {
 })
 
 app.whenReady().then(() => {
+  // Sin el menú por defecto de Electron (que trae los atajos de zoom y recarga).
+  Menu.setApplicationMenu(null)
   crearVentana()
 })
 
